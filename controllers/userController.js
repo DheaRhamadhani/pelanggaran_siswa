@@ -1,22 +1,35 @@
-let modelUser = require("../models/index").user
-let md5 = require(`md5`)
+const req = require("express/lib/request")
+let md5 = require("md5")
+let jwt = require('jsonwebtoken')
 
-exports.getUser = async (request, response) => {
-    let dataUser = await modelUser.findAll()
-    return response.json(dataUser)
+// memanggil file model untuk User
+let modelUser = require("../models/index").user
+
+
+exports.getDataUser = (request, response) => {
+    modelUser.findAll()
+    .then(result => {
+        return response.json(result)
+    })
+    .catch(error => {
+        return response.json({
+            message: error.message
+        })
+    })
 }
 
-exports.addUser = (request, response) => {
-    let dataUser = {
+exports.addDataUser = (request, response) => {
+    // tampung data request
+    let newUser = {
         nama_user: request.body.nama_user,
         username: request.body.username,
-        password: md5(request.body.password)
+        password:  md5(request.body.password)
     }
 
-    modelUser.create(dataUser)
+    modelUser.create(newUser)
     .then(result => {
         return response.json({
-            message: `Data user berhasil ditambahkan`
+            message: ` Data user berhasil ditambahkan`
         })
     })
     .catch(error => {
@@ -26,44 +39,70 @@ exports.addUser = (request, response) => {
     })
 }
 
-exports.updateUser = (request, response) => {
-    let params = {
-        id_user: request.params.id_user
-    }
-
+exports.editDataUser = (request, response) => {
+    let id = request.params.id_user
     let dataUser = {
         nama_user: request.body.nama_user,
         username: request.body.username,
         password: md5(request.body.password)
     }
 
-    modelUser.update(dataUser, {where: params})
-        .then(result => {
-            return response.json({
-                message: `Data user berhasil diubah`
-            })
+    modelUser.update(dataUser, { where: {id_user: id} })
+    .then(result => {
+        return response.json({
+            message: ` Data user berhasil diubah`
         })
-        .catch(error => {
-            return response.json({
-                message: error.message
-            })
+    })
+    .catch(error => {
+        return response.json({
+            message: error.message
         })
+    })
 }
 
-exports.deleteUser = (request, response) => {
-    let params = {
-        id_user: request.params.id_user
+exports.deleteDataUser = (request, response) => {
+    let id = request.params.id_user
+
+    modelUser.destroy({where: {id_user: id}})
+    .then(result => {
+        return response.json({
+            message: ` Data user berhasil dihapus`
+        })
+    })   
+    .catch(error => {
+        return response.json({
+            message: error.message
+        })
+    })
+}
+
+exports.authentication = async(request, response) => {
+    let data = {
+        username: request.body.username,
+        password: md5(request.body.password)
     }
 
-    modelUser.destroy({where: params})
-        .then(result => {
-            return response.json({
-                message: `Data user berhasil dihapus`
-            })
+    // validasi (cek data di tabel user)
+    let result = await modelUser.findOne({where: data})
+
+    if (result) {
+        // data ditemukan
+
+        // payload adalah data/informasi yang akan dienkripsi
+        let payload = JSON.stringify(result) // konversi dari bentuk objek ke JSON
+        let secretKey = `Sequelize itu sangat menyenangkan`
+
+        // generate token
+        let token = jwt.sign(payload, secretKey)
+        return response.json({
+            logged: true,
+            token: token
         })
-        .catch(error => {
-            return response.json({
-                message: error.message
-            })
+    }else{
+        // data tidak ditemukan
+        return response.json({
+            logged : false,
+            message: `gagal`
         })
+    }
 }
